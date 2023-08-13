@@ -14,7 +14,7 @@ public class DomainUtils {
 
 
     private static final long SEED = 123;
-    public static final int DEFAULT_VECTOR_SIZE = 5;
+    public static final int DEFAULT_VECTOR_SIZE = 300;
     private final Random RND = new Random(SEED);
 
     public Vector prepareVector(File f) {
