@@ -1,10 +1,2 @@
-/target/classes/thm/ai/sandbox001/client/FileDataLoader.class
-/target/classes/thm/ai/sandbox001/client/SampleEngine.class
-/target/classes/thm/ai/sandbox001/config/CommandLineRunnerConfig.class
-/target/classes/thm/ai/sandbox001/db/VectorRepository.class
-/target/classes/thm/ai/sandbox001/db/VectorService.class
-/target/classes/thm/ai/sandbox001/domain/Vector.class
-/target/classes/thm/ai/sandbox001/utils/DistanceUtils.class
-/target/classes/thm/ai/sandbox001/utils/DomainUtils.class
-/target/classes/thm/ai/sandbox001/utils/IOUtils.class
-/target/classes/thm/ai/sandbox001/Application.class
+/target/
+/.idea/
