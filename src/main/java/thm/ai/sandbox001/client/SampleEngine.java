@@ -18,28 +18,31 @@ public class SampleEngine {
     private final FileDataLoader fileDataLoader;
     private final VectorService vectorService;
     private final DistanceUtils distanceUtils;
+    private final ChatGPTClient chatGPTClient;
 
     public void processData(String path) {
 
-        vectorService.getAllVectorIds().stream()
-                .map(id -> vectorService.getVectorById(id))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .peek(v -> log.info("Removing from DB: {}", v))
-                .forEach(v -> vectorService.deleteVectorById(v.getId()));
+//        vectorService.getAllVectorIds().stream()
+//                .map(id -> vectorService.getVectorById(id))
+//                .filter(Optional::isPresent)
+//                .map(Optional::get)
+//                .peek(v -> log.info("Removing from DB: {}", v))
+//                .forEach(v -> vectorService.deleteVectorById(v.getId()));
 
-        fileDataLoader.loadData(path).stream()
-                .map(v -> vectorService.saveVector(v))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .map(v -> vectorService.getVectorById(v.getId()))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .peek(v -> log.info("Loaded from DB: {}", v))
-                .toList();
+//        fileDataLoader.loadData(path).stream()
+//                .peek(v -> v.setEmbedding(chatGPTClient.getEmbeddings(v.getOrigin())))
+//                .map(v -> vectorService.saveVector(v))
+//                .filter(Optional::isPresent)
+//                .map(Optional::get)
+//                .map(v -> vectorService.getVectorById(v.getId()))
+//                .filter(Optional::isPresent)
+//                .map(Optional::get)
+//                .peek(v -> log.info("Loaded from DB: {}", v))
+//                .toList();
+
 
         List<Vector> vectorsWithoutData = vectorService.getAllVectorWithoutOrigin();
-        double[][] distanceMap = new double[vectorsWithoutData.size()][vectorsWithoutData.size()];
+        float[][] distanceMap = new float[vectorsWithoutData.size()][vectorsWithoutData.size()];
 
         Vector[] v1 = vectorsWithoutData.toArray(new Vector[vectorsWithoutData.size()]);
         Vector[] v2 = vectorsWithoutData.toArray(new Vector[vectorsWithoutData.size()]);

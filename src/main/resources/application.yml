@@ -4,3 +4,14 @@ spring:
       host: localhost
       port: 27017
       database: vectors
+
+langchain4j:
+  embeddingModel:
+    provider: OPEN_AI
+    openAi:
+      api-key: ${OPENAI_API_KEY}
+      modelName: text-embedding-ada-002
+      temperature: 0.1
+      timeout: PT10S
+      logRequests: true
+      logResponses: true

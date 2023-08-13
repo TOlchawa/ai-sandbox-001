@@ -29,7 +29,7 @@ public class Vector {
 
     @Field("vector")
     @Indexed
-    private List<Double> vector;
+    private float[] embedding;
 
     @Override
     public String toString() {
@@ -39,7 +39,7 @@ public class Vector {
                 ", origin:'" + (origin != null ? "length:" + origin.length() : null) + "'" +
                 ", fileName:'" + fileName + "'" +
                 ", tags:'" + tags + "'" +
-                ", vactor:" + (vector != null ? "size:" + vector.size() : null) + "'" +
+                ", embedding:" + (embedding != null ? "size:" + embedding.length : null) + "'" +
                 '}';
     }
 

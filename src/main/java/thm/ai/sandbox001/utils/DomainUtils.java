@@ -1,5 +1,6 @@
 package thm.ai.sandbox001.utils;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.stereotype.Repository;
 import thm.ai.sandbox001.domain.Vector;
 
@@ -20,14 +21,16 @@ public class DomainUtils {
     public Vector prepareVector(File f) {
         Vector result = new Vector();
         result.setFileName(f.getAbsolutePath());
-        result.setVector(generateRandomList(DEFAULT_VECTOR_SIZE));
+        result.setEmbedding(generateRandomList(DEFAULT_VECTOR_SIZE));
         return result;
     }
 
-    public List<Double> generateRandomList(int size) {
-        return DoubleStream.generate(RND::nextDouble)
+    public float[] generateRandomList(int size) {
+        return  ArrayUtils.toPrimitive(DoubleStream.generate(RND::nextDouble)
                 .limit(size)
                 .boxed()
-                .collect(Collectors.toList());
+                .map(d -> d.floatValue())
+                .toList()
+                .toArray(new Float[size]));
     }
 }
