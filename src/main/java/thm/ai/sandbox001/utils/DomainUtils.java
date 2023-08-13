@@ -21,6 +21,7 @@ public class DomainUtils {
     public Vector prepareVector(File f) {
         Vector result = new Vector();
         result.setFileName(f.getAbsolutePath());
+        result.setName(f.getName());
         result.setEmbedding(generateRandomList(DEFAULT_VECTOR_SIZE));
         return result;
     }

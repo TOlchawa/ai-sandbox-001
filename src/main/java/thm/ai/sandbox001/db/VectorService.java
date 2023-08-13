@@ -41,7 +41,7 @@ public class VectorService {
 
     public List<Vector> getAllVectorWithoutOrigin() {
         Query query = new Query();
-        query.fields().include("_id", "vector");
+        query.fields().include("_id", "vector", "name");
 
         return mongoTemplate.find(query, Vector.class)
                 .stream()
