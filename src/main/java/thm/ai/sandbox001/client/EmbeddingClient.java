@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @AllArgsConstructor
-public class ChatGPTClient {
+public class EmbeddingClient {
     private final EmbeddingModel embeddingModel;
 
     public float[] getEmbeddings(String original) {

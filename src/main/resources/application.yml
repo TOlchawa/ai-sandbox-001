@@ -12,6 +12,15 @@ langchain4j:
       api-key: ${OPENAI_API_KEY}
       modelName: text-embedding-ada-002
       temperature: 0.1
-      timeout: PT10S
+      timeout: PT99S
+      logRequests: true
+      logResponses: true
+  chatModel:
+    provider: OPEN_AI
+    openAi:
+      api-key: ${OPENAI_API_KEY}
+      modelName: gpt-3.5-turbo-16k
+      temperature: 0.1
+      timeout: PT99S
       logRequests: true
       logResponses: true
