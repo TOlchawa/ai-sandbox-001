@@ -166,10 +166,4 @@ public class SampleEngine {
         return chatClient.askQuestion(contextVectors, question);
     }
 
-    public static class FloatComparator implements Comparator<Float> {
-        @Override
-        public int compare(Float float1, Float float2) {
-            return Float.compare(float1, float2);
-        }
-    }
 }
