@@ -9,6 +9,8 @@ import thm.ai.sandbox001.db.VectorService;
 import thm.ai.sandbox001.domain.Vector;
 import thm.ai.sandbox001.utils.DistanceUtils;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Stream;
 
@@ -24,8 +26,8 @@ public class SampleEngine {
     private final EmbeddingClient embeddingClient;
     private final ChatClient chatClient;
 
-    private static boolean clearData = false;
-    private static boolean loadData = false;
+    private static boolean clearData = true;
+    private static boolean loadData = true;
     private static boolean distanceMap = false;
 
     public List<Vector> createContext(String subject) {
@@ -80,7 +82,11 @@ public class SampleEngine {
 
         if (loadData) {
             fileDataLoader.loadData(path).stream()
-                    .peek(v -> v.setEmbedding(embeddingClient.getEmbeddings(v.getOrigin())))
+                    .peek(v -> {
+                        Instant startT = Instant.now();
+                        v.setEmbedding(embeddingClient.getEmbeddings(v.getOrigin()));
+                        log.info("Calculate embedings for {} in {}", v.getName(), Duration.between(startT, Instant.now()).toSeconds());
+                    })
                     .map(v -> vectorService.saveVector(v))
                     .filter(Optional::isPresent)
                     .map(Optional::get)

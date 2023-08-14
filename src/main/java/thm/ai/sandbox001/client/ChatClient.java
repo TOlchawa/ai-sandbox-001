@@ -26,10 +26,10 @@ public class ChatClient {
     public String askQuestion(List<Vector> contextVectors, String question) {
         Instant startT = Instant.now();
         List<ChatMessage> conversation = prepareMessages(contextVectors, question);
-        log.info("Context created in {}", Duration.between(startT, Instant.now()));
+        log.info("Context created in {}", Duration.between(startT, Instant.now()).toSeconds());
         startT = Instant.now();
         AiMessage answer = chatLanguageModel.sendMessages(conversation);
-        log.info("Response generated in {}", Duration.between(startT, Instant.now()));
+        log.info("Response generated in {}", Duration.between(startT, Instant.now()).toSeconds());
         return answer.toString();
     }
 
