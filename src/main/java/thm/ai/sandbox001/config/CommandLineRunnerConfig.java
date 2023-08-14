@@ -30,6 +30,7 @@ public class CommandLineRunnerConfig {
         return args -> {
             sampleEngine.processData(args[0]);
             Scanner scanner = new Scanner(System.in);
+            // fake change
             System.out.println("Enter input ({context}, 'enter', 'exit') : ");
             while (!finish) {
                 processInput(scanner);

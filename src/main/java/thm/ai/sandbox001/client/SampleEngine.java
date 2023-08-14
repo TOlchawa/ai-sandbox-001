@@ -8,11 +8,12 @@ import org.springframework.stereotype.Service;
 import thm.ai.sandbox001.db.VectorService;
 import thm.ai.sandbox001.domain.Vector;
 import thm.ai.sandbox001.utils.DistanceUtils;
+import thm.ai.sandbox001.utils.IOUtils;
 
+import java.io.File;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import java.util.stream.Stream;
 
 @Slf4j
 @AllArgsConstructor
@@ -20,15 +21,17 @@ import java.util.stream.Stream;
 public class SampleEngine {
 
     public static final float MIN_DISTANCE = 0.33f;
+    private final IOUtils ioUtils;
     private final FileDataLoader fileDataLoader;
     private final VectorService vectorService;
     private final DistanceUtils distanceUtils;
     private final EmbeddingClient embeddingClient;
     private final ChatClient chatClient;
 
-    private static boolean clearData = true;
-    private static boolean loadData = true;
+    private static boolean clearData = false;
+    private static boolean loadData = false;
     private static boolean distanceMap = false;
+    private static boolean updateAndLoadData = true;
 
     public List<Vector> createContext(String subject) {
         float[] embedding = embeddingClient.getEmbeddings(subject);
@@ -85,15 +88,55 @@ public class SampleEngine {
                     .peek(v -> {
                         Instant startT = Instant.now();
                         v.setEmbedding(embeddingClient.getEmbeddings(v.getOrigin()));
-                        log.info("Calculate embedings for {} in {}", v.getName(), Duration.between(startT, Instant.now()).toSeconds());
+                        log.info("Calculate embedings for {} in {}", v.getName(), Duration.between(startT, Instant.now()).toMillis());
                     })
                     .map(v -> vectorService.saveVector(v))
                     .filter(Optional::isPresent)
                     .map(Optional::get)
-                    .map(v -> vectorService.getVectorById(v.getId()))
+                    .toList();
+        }
+
+        if (updateAndLoadData) {
+
+            log.info("searching for deprecated files...");
+            vectorService.getAllVectorIds().stream()
+                    .map(id -> vectorService.getVectorById(id))
                     .filter(Optional::isPresent)
                     .map(Optional::get)
-                    .peek(v -> log.info("Loaded from DB: {}", v))
+                    .map(v -> Pair.of(new File(v.getFileName()), v))
+                    .filter( p -> {
+                        File file = p.getLeft();
+                        Vector v = p.getRight();
+                        if (!file.exists()) {
+                            return true; // something
+                        } else {
+                            int currentHashCode = v.getHashCodeOrigin();
+                            return !ioUtils.loadFileContent(file)
+                                    .map(String::hashCode)
+                                    .filter(hashCode -> hashCode == currentHashCode)
+                                    .isPresent();
+                        }
+                    })
+                    .map(Pair::getRight)
+                    .peek(v -> log.info("Removing from DB: {}", v))
+                    .forEach(v -> vectorService.deleteVectorById(v.getId()));
+
+            log.info("searching for updated files files...");
+            fileDataLoader.loadData(path).stream()
+                    .filter( v -> {
+                        int currentHashCodeOriginal = v.getHashCodeOrigin();
+                        return !vectorService.getAllVectorHashCodeOrigin(v.getName())
+                                .stream()
+                                .anyMatch(val -> val.getHashCodeOrigin() == currentHashCodeOriginal);
+                    })
+                    .peek(v -> {
+                        Instant startT = Instant.now();
+                        v.setEmbedding(embeddingClient.getEmbeddings(v.getOrigin()));
+                        log.info("Calculate embeddings for {} in {}", v.getName(), Duration.between(startT, Instant.now()).toMillis());
+                    })
+                    .map(v -> vectorService.saveVector(v))
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
                     .toList();
         }
 

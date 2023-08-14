@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import static java.util.List.of;
 
@@ -45,10 +46,22 @@ public class IOUtils {
         Resource resource = resourceLoader.getResource("file:" + vector.getFileName());
         try {
             vector.setOrigin(org.apache.commons.io.IOUtils.toString(resource.getInputStream(), StandardCharsets.UTF_8));
+            vector.setHashCodeOrigin(vector.getOrigin().hashCode());
         } catch (IOException e) {
             log.error("Not able to load data for {}", vector, e);
         }
         return vector;
+    }
+
+    public Optional<String> loadFileContent(File file) {
+        Resource resource = resourceLoader.getResource("file:" + file.getAbsolutePath());
+        String result = null;
+        try {
+            result = org.apache.commons.io.IOUtils.toString(resource.getInputStream(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            log.error("Not able to load data for {}", file, e);
+        }
+        return Optional.ofNullable(result);
     }
 
 }

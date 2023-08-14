@@ -1,15 +1,14 @@
 package thm.ai.sandbox001.db;
 
 import lombok.AllArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 import thm.ai.sandbox001.domain.Vector;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
@@ -42,6 +41,16 @@ public class VectorService {
     public List<Vector> getAllVectorWithoutOrigin() {
         Query query = new Query();
         query.fields().include("_id", "vector", "name");
+
+        return mongoTemplate.find(query, Vector.class)
+                .stream()
+                .toList();
+    }
+
+    public List<Vector> getAllVectorHashCodeOrigin(String name) {
+        Query query = new Query();
+        query.addCriteria(Criteria.where("name").is(name));
+        query.fields().include("_id", "hashCodeOrigin", "name", "fileName");
 
         return mongoTemplate.find(query, Vector.class)
                 .stream()
