@@ -14,6 +14,7 @@ import java.io.File;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @AllArgsConstructor
@@ -21,6 +22,7 @@ import java.util.*;
 public class SampleEngine {
 
     public static final float MIN_DISTANCE = 0.33f;
+    private static final int MAX_DATA_LEN = 5000;
     private final IOUtils ioUtils;
     private final FileDataLoader fileDataLoader;
     private final VectorService vectorService;
@@ -34,40 +36,69 @@ public class SampleEngine {
     private static boolean updateAndLoadData = true;
 
     public List<Vector> createContext(String subject) {
+
+        // get VECTOR for question
         float[] embedding = embeddingClient.getEmbeddings(subject);
+
+        // get all vectors
         List<Vector> vectorsWithoutData = vectorService.getAllVectorWithoutOrigin();
         LinkedTreeMap<Float, Vector> distanceTree = new LinkedTreeMap<>();
+
+        // calculate distance from to VECTOR
         vectorsWithoutData.forEach(v -> distanceTree.put(Float.valueOf(distanceUtils.distance(embedding, v.getEmbedding())), v));
 
         List<Map.Entry<Float, Vector>> sortedEntries = new ArrayList<>(distanceTree.entrySet());
+
         Collections.sort(sortedEntries, Comparator.comparing(Map.Entry::getKey));
 
+        AtomicInteger currentSize = new AtomicInteger(0);
         List<Vector> similar = sortedEntries.stream()
-                .filter(e -> e.getKey().floatValue() < MIN_DISTANCE)
-                .limit(3)
+//                .filter(e -> e.getKey().floatValue() < MIN_DISTANCE)
                 .peek(e -> log.info("distance: {}", e.getKey()))
                 .map(Map.Entry::getValue)
+                .filter(v -> {
+                    boolean result = (MAX_DATA_LEN > (currentSize.get() + v.getSizeOrigin()));
+                    if (result) {
+                        currentSize.addAndGet(v.getSizeOrigin());
+                    }
+                    return result;
+                })
                 .map(Vector::getId)
                 .map(id -> vectorService.getVectorById(id))
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .toList();
 
+        log.info("similar: {}", similar);
+
         List<Vector> related = similar.stream()
                 .map(v -> Pair.of(Float.valueOf(distanceUtils.distance(embedding, v.getEmbedding())), v))
-                .filter(p -> p.getLeft().floatValue() < MIN_DISTANCE)
+//                .filter(p -> p.getLeft().floatValue() < MIN_DISTANCE)
                 .filter(p -> !similar.contains(p.getRight()))
-                .limit(2)
+//                .limit(2)
                 .map(p -> p.getRight().getId())
                 .map(id -> vectorService.getVectorById(id))
                 .filter(Optional::isPresent)
                 .map(Optional::get)
+                .filter(v -> {
+                    boolean result = (MAX_DATA_LEN > (currentSize.get() + v.getSizeOrigin()));
+                    if (result) {
+                        currentSize.addAndGet(v.getSizeOrigin());
+                    }
+                    return result;
+                })
                 .toList();
+
+        log.info("related: {}", similar);
 
         List<Vector> result = new ArrayList<>();
         result.addAll(similar);
         result.addAll(related);
 
+        log.info("CONTEXT.SIZE: {}", result.size());
+        result.forEach(v -> {
+            log.info("CONTEXT: {}", v);
+        });
 
         return result;
     }

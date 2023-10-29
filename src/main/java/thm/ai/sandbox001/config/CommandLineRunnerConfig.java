@@ -11,6 +11,8 @@ import org.springframework.context.annotation.Configuration;
 import thm.ai.sandbox001.client.SampleEngine;
 import thm.ai.sandbox001.domain.Vector;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Scanner;
 
@@ -47,7 +49,10 @@ public class CommandLineRunnerConfig {
         } else if ("enter".equalsIgnoreCase(input)) {
             String question = buffer.toString();
             buffer = new StringBuffer();
+
+            Instant startT = Instant.now();
             List<Vector> contextVectors = sampleEngine.createContext(question);
+            log.info("Context created in {}", Duration.between(startT, Instant.now()).toSeconds());
 
             log.info("Question: {}", question);
             contextVectors.forEach(v -> log.info("context: {}", v));

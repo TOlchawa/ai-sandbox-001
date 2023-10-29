@@ -20,6 +20,9 @@ public class Vector {
     @Field("origin")
     private String origin;
 
+    @Field("sizeOrigin")
+    private int sizeOrigin;
+
     @Field("hashCodeOrigin")
     private int hashCodeOrigin;
 
