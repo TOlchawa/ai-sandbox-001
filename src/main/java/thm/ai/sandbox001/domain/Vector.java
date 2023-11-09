@@ -14,6 +14,9 @@ public class Vector {
     @Id
     private String id;
 
+    @Indexed
+    private String parentId;
+
     @Field("name")
     private String name;
 

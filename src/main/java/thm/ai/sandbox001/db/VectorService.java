@@ -24,6 +24,10 @@ public class VectorService {
         return vectorRepository.findById(id);
     }
 
+    public List<Vector> getVectorByParentId(String parentId) {
+        return vectorRepository.findByParentId(parentId);
+    }
+
     public void deleteVectorById(String id) {
         vectorRepository.deleteById(id);
     }
@@ -38,6 +42,29 @@ public class VectorService {
                 .toList();
     }
 
+    public List<String> getAllVectorWithFileNameIds() {
+        Query query = new Query();
+        query.addCriteria(Criteria.where("fileName").exists(true));
+        query.fields().include("_id");
+
+        return mongoTemplate.find(query, Vector.class)
+                .stream()
+                .map(Vector::getId)
+                .toList();
+    }
+
+
+
+    public List<String> getAllVectorWithGeneratedDataIds() {
+        Query query = new Query();
+        query.addCriteria(Criteria.where("fileName").exists(false));
+        query.fields().include("_id");
+
+        return mongoTemplate.find(query, Vector.class)
+                .stream()
+                .map(Vector::getId)
+                .toList();
+    }
     public List<Vector> getAllVectorWithoutOrigin() {
         Query query = new Query();
         query.fields().include("_id", "vector", "name", "sizeOrigin");
@@ -47,10 +74,10 @@ public class VectorService {
                 .toList();
     }
 
-    public List<Vector> getAllVectorHashCodeOrigin(String name) {
+    public List<Vector> getAllForFileName(String fileName) {
         Query query = new Query();
-        query.addCriteria(Criteria.where("name").is(name));
-        query.fields().include("_id", "hashCodeOrigin", "name", "fileName");
+        query.addCriteria(Criteria.where("fileName").is(fileName));
+        query.fields().include("_id", "hashCodeOrigin", "fileName");
 
         return mongoTemplate.find(query, Vector.class)
                 .stream()

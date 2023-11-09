@@ -5,6 +5,11 @@ spring:
       port: 27017
       database: vectors
 
+logging:
+  pattern:
+    console: "%d{HH:mm:ss} %-5level [%thread] %logger{36} - %msg%n"
+
+
 langchain4j:
   embeddingModel:
     provider: OPEN_AI
@@ -21,6 +26,6 @@ langchain4j:
       api-key: ${OPENAI_API_KEY}
       modelName: gpt-3.5-turbo-16k
       temperature: 0.1
-      timeout: PT99S
+      timeout: PT999S
       logRequests: true
       logResponses: true

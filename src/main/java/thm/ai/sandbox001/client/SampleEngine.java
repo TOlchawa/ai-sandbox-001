@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.stereotype.Service;
-import thm.ai.sandbox001.db.VectorService;
 import thm.ai.sandbox001.domain.Vector;
 import thm.ai.sandbox001.utils.DistanceUtils;
 import thm.ai.sandbox001.utils.IOUtils;
@@ -16,6 +15,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static java.lang.Thread.sleep;
+
 @Slf4j
 @AllArgsConstructor
 @Service
@@ -25,12 +26,15 @@ public class SampleEngine {
     private static final int MAX_DATA_LEN = 5000;
     private final IOUtils ioUtils;
     private final FileDataLoader fileDataLoader;
-    private final VectorService vectorService;
+
     private final DistanceUtils distanceUtils;
     private final EmbeddingClient embeddingClient;
     private final ChatClient chatClient;
+    private final VectorsRepository vectorsRepository;
 
     private static boolean clearData = false;
+    private static boolean clearGeneratedData = false;
+    private static boolean generateDataForAllFiles = true;
     private static boolean loadData = false;
     private static boolean distanceMap = false;
     private static boolean updateAndLoadData = true;
@@ -41,7 +45,7 @@ public class SampleEngine {
         float[] embedding = embeddingClient.getEmbeddings(subject);
 
         // get all vectors
-        List<Vector> vectorsWithoutData = vectorService.getAllVectorWithoutOrigin();
+        List<Vector> vectorsWithoutData = vectorsRepository.getAllVectorWithoutOrigin();
         LinkedTreeMap<Float, Vector> distanceTree = new LinkedTreeMap<>();
 
         // calculate distance from to VECTOR
@@ -53,7 +57,7 @@ public class SampleEngine {
 
         AtomicInteger currentSize = new AtomicInteger(0);
         List<Vector> similar = sortedEntries.stream()
-//                .filter(e -> e.getKey().floatValue() < MIN_DISTANCE)
+                .filter(e -> e.getKey().floatValue() < MIN_DISTANCE)
                 .peek(e -> log.info("distance: {}", e.getKey()))
                 .map(Map.Entry::getValue)
                 .filter(v -> {
@@ -64,7 +68,7 @@ public class SampleEngine {
                     return result;
                 })
                 .map(Vector::getId)
-                .map(id -> vectorService.getVectorById(id))
+                .map(id -> vectorsRepository.getVectorById(id))
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .toList();
@@ -77,7 +81,7 @@ public class SampleEngine {
                 .filter(p -> !similar.contains(p.getRight()))
 //                .limit(2)
                 .map(p -> p.getRight().getId())
-                .map(id -> vectorService.getVectorById(id))
+                .map(id -> vectorsRepository.getVectorById(id))
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .filter(v -> {
@@ -106,32 +110,44 @@ public class SampleEngine {
     public void processData(String path) {
 
         if (clearData) {
-            vectorService.getAllVectorIds().stream()
-                    .map(id -> vectorService.getVectorById(id))
+            vectorsRepository.getAllVectorIds().stream()
+                    .map(id -> vectorsRepository.getVectorById(id))
                     .filter(Optional::isPresent)
                     .map(Optional::get)
                     .peek(v -> log.info("Removing from DB: {}", v))
-                    .forEach(v -> vectorService.deleteVectorById(v.getId()));
+                    .forEach(v -> vectorsRepository.removeVector(v));
+        }
+
+        if (clearGeneratedData) {
+            vectorsRepository.getAllVectorWithGeneratedDataIds().stream()
+                    .map(id -> vectorsRepository.getVectorById(id))
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .peek(v -> log.info("Removing from DB: {}", v))
+                    .forEach(v -> vectorsRepository.removeVector(v));
+        }
+
+        if (generateDataForAllFiles) {
+            vectorsRepository.getAllVectorWithFileNameIds().stream()
+                    .map(id -> vectorsRepository.getVectorById(id))
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .forEach(v -> {
+                        generateDescriptionDataForFileName(v);
+                        generateTechnicalDescriptionDataForFileName(v);
+                    });
         }
 
         if (loadData) {
-            fileDataLoader.loadData(path).stream()
-                    .peek(v -> {
-                        Instant startT = Instant.now();
-                        v.setEmbedding(embeddingClient.getEmbeddings(v.getOrigin()));
-                        log.info("Calculate embedings for {} in {}", v.getName(), Duration.between(startT, Instant.now()).toMillis());
-                    })
-                    .map(v -> vectorService.saveVector(v))
-                    .filter(Optional::isPresent)
-                    .map(Optional::get)
-                    .toList();
+            List<Vector> vectors = generateEmbeddings(path);
+            generateEmbeddingsOfDescriptions(vectors);
         }
 
         if (updateAndLoadData) {
 
             log.info("searching for deprecated files...");
-            vectorService.getAllVectorIds().stream()
-                    .map(id -> vectorService.getVectorById(id))
+            vectorsRepository.getAllVectorWithFileNameIds().stream()
+                    .map(id -> vectorsRepository.getVectorById(id))
                     .filter(Optional::isPresent)
                     .map(Optional::get)
                     .map(v -> Pair.of(new File(v.getFileName()), v))
@@ -150,28 +166,23 @@ public class SampleEngine {
                     })
                     .map(Pair::getRight)
                     .peek(v -> log.info("Removing from DB: {}", v))
-                    .forEach(v -> vectorService.deleteVectorById(v.getId()));
+                    .forEach(v -> vectorsRepository.removeDeprecatedData(v));
 
             log.info("searching for updated files files...");
             fileDataLoader.loadData(path).stream()
-                    .filter( v -> {
-                        int currentHashCodeOriginal = v.getHashCodeOrigin();
-                        return !vectorService.getAllVectorHashCodeOrigin(v.getName())
-                                .stream()
-                                .anyMatch(val -> val.getHashCodeOrigin() == currentHashCodeOriginal);
-                    })
+                    .filter(this::isModified)
                     .peek(v -> {
                         Instant startT = Instant.now();
                         v.setEmbedding(embeddingClient.getEmbeddings(v.getOrigin()));
-                        log.info("Calculate embeddings for {} in {}", v.getName(), Duration.between(startT, Instant.now()).toMillis());
+                        log.info("Calculate embeddings for {} in {} [TODO: need to update related data]", v.getName(), Duration.between(startT, Instant.now()).toMillis());
                     })
-                    .map(v -> vectorService.saveVector(v))
+                    .map(v -> vectorsRepository.saveVector(v))
                     .filter(Optional::isPresent)
                     .map(Optional::get)
                     .toList();
         }
 
-        List<Vector> vectorsWithoutData = vectorService.getAllVectorWithoutOrigin();
+        List<Vector> vectorsWithoutData = vectorsRepository.getAllVectorWithoutOrigin();
 
         if (distanceMap) {
             float[][] distanceMap = new float[vectorsWithoutData.size()][vectorsWithoutData.size()];
@@ -191,6 +202,84 @@ public class SampleEngine {
             }
         }
 
+    }
+
+    private void generateDescriptionDataForFileName(Vector v) {
+        log.info("v: {}", v);
+        String question = String.format("Describe functionality for file:\n%s\n\n%s", v.getFileName(), v.getOrigin());
+        log.info("question: {}", question);
+        String response = chatClient.askQuestion(Collections.emptyList(), question);
+        log.info("response: {}", response);
+
+        float[] emeddings = embeddingClient.getEmbeddings(response);
+
+        Vector result =  new Vector();
+        result.setName(v.getName());
+        result.setOrigin(response);
+        result.setEmbedding(emeddings);
+        result.setHashCodeOrigin(response.hashCode());
+        result.setParentId(v.getId());
+        result.setTags(List.of("generated"));
+
+        vectorsRepository.saveVector(result);
+    }
+
+
+    private void generateTechnicalDescriptionDataForFileName(Vector v) {
+        log.info("v: {}", v);
+        String question = String.format("Create short technical description of file (complexity, used technologies, used frameworks) for file:\n%s\n\n%s", v.getFileName(), v.getOrigin());
+        log.info("question: {}", question);
+        String response = chatClient.askQuestion(Collections.emptyList(), question);
+        log.info("response: {}", response);
+
+        float[] emeddings = embeddingClient.getEmbeddings(response);
+
+        Vector result =  new Vector();
+        result.setName(v.getName());
+        result.setOrigin(response);
+        result.setEmbedding(emeddings);
+        result.setHashCodeOrigin(response.hashCode());
+        result.setParentId(v.getId());
+        result.setTags(List.of("generated"));
+
+        vectorsRepository.saveVector(result);
+    }
+
+    private boolean isModified(Vector v) {
+        log.info("checking hash code for {}", v.getFileName());
+        int currentHashCodeOriginal = v.getHashCodeOrigin();
+        return vectorsRepository.getAllForFileName(v.getFileName())
+                .stream()
+                .anyMatch(val -> val.getHashCodeOrigin() != currentHashCodeOriginal);
+    }
+
+
+    private List<Vector>  generateEmbeddings(String path) {
+        List<Vector> listOfVectors = fileDataLoader.loadData(path).stream()
+                .map(v -> {
+                    Instant startT = Instant.now();
+                    v.setEmbedding(embeddingClient.getEmbeddings(v.getOrigin()));
+                    log.info("Calculate embedings for {} in {}", v.getName(), Duration.between(startT, Instant.now()).toMillis());
+                    return v;
+                })
+                .map(v -> vectorsRepository.saveVector(v))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .toList();
+        return listOfVectors;
+    }
+
+    private void generateEmbeddingsOfDescriptions(List<Vector> vectors) {
+        vectors.stream()
+                .map(v -> {
+                    Instant startT = Instant.now();
+                    Optional<Vector> result = vectorsRepository.saveVector(embeddingClient.createAdditionalMetaData(v));
+                    log.info("Calculate embedings of description for {} in {}", v.getName(), Duration.between(startT, Instant.now()).toMillis());
+                    return result;
+                })
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .toList();
     }
 
     public String processContext(List<Vector> contextVectors, String question) {

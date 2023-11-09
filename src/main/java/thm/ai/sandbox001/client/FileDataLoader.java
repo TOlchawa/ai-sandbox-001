@@ -20,7 +20,7 @@ public class FileDataLoader {
     public List<Vector> loadData(String path) {
         return ioUtils.loadAllFiles(path)
                 .stream()
-                .peek(f -> System.out.println(f.getAbsolutePath()))
+                .peek(f -> log.info(f.getAbsolutePath()))
                 .map(f -> domainUtils.prepareVector(f))
                 .map(v -> ioUtils.loadFileContent(v))
                 .toList();
